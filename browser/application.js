@@ -1,5 +1,5 @@
 import Logger from "../logger";
-import assert from '../assert.js'
+import assert from '../assert.js';
 const log = Logger.create("Application");
 export var app = null;
 
