@@ -1,5 +1,5 @@
 // conditional imports can't be done, so import all env definitions 
-// then select the correct one
+// then select the correct one.  nodejs apps won't use either
 import env_prod from './browser/browser-env-prod.js';
 import env_dev from './browser/browser-env-dev.js';
 

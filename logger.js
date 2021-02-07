@@ -2,7 +2,7 @@
 
 import {logWriterManager,LOG_LEVEL,LogLevel, LoggerModule, LogWriter, LogMessage} from './log-writer.js';
 import {OptionDef,default as Util} from './util.js';
-import ENV from '../../public/drjs/env.js';
+import ENV from './env.js';
 
 //export const LOG_LEVEL = BASE_LOG_LEVEL;
 

@@ -1,4 +1,4 @@
-import Logger from '../../shared/js/logger.js';
+import Logger from './logger.js';
 const log = Logger.create('Assert');
 
 export class Assert {
