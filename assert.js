@@ -23,6 +23,53 @@ export class Assert {
             } 
         } catch(err) {
             log.error(err);
+            throw err;
+        }
+    }
+
+    notNull(item,message) {
+        // treat "undefined" and null items the same
+        if (typeof item === 'undefined' || item === null) {
+            message || "value cannot be null";
+            log.error(message);
+            throw new Error(message);
+        }
+    }
+
+    null(item,message) {
+        // treat "undefined" and null items the same
+        if (typeof item !== 'undefined' && item !== null) {
+            message || "expected null value";
+            log.error(message);
+            throw new Error(message);
+        }
+    }
+
+    empty(item,message) {
+        var isEmpty = false;
+        if (typeof item === "undefined" || item === null) {
+            isEmpty = true;
+        } else if (typeof item === 'string'){
+            isEmpty = true;
+        } else  if (Array.isArray(item)) {
+            isEmpty = true;
+        }
+        if (!isEmpty) {
+            message = message || "expected value to be an empty string or array";
+            log.error(mesage);
+            throw new Error(message);
+        }
+    }
+    range(val,min,max,message = null) {
+        if (val < min || val > max) {
+            throw new Error(message || `value must be at least ${min} and at most ${max}: ${val}`);
+        }
+    }
+
+    type(object, type,message) {
+        if (! (object instanceof type)){
+            log.error(message || "object is the wrong type");
+            throw new Error(message);
         }
     }
 }

@@ -9,7 +9,7 @@ export class HttpRequest {
         this.baseUrl = baseUrl;
     }
 
-    get(path,params=null,responseType='html') {
+    get(path,params=null,responseType='text') {
         return new Promise((resolve,reject)=>{
             const fullPath = this.baseUrl+encodeURI(path).replaceAll('//','/');
             var xhttp = new XMLHttpRequest();
