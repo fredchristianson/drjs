@@ -12,6 +12,7 @@ export class Page {
     setDefaultPage(name) {
         this.defaultPage = name;
     }
+    
     name() {
         var page = window.location.pathname.substr(1);
         if (util.isEmpty(page)){

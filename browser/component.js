@@ -21,8 +21,19 @@ export class ComponentBase {
                 throw new Error(`cannot find parent selector ${selector} for html file ${htmlName}`);
             }
             parent.innerHTML = '';
+            var body = document.body;
             elements.forEach(element=>{
-                parent.appendChild(element);
+                if (element.tagName == 'SCRIPT' && !util.isEmpty(element.getAttribute('src'))) {
+                    const script = document.createElement('script');
+                    script.src = element.getAttribute('src');
+                    body.append(script);
+                } else if (element.tagName == 'SCRIPT' && element.getAttribute('type') === 'application/javascript') {
+                    const script = document.createElement('script');
+                    script.innerHTML = element.innerHTML;
+                    body.append(script);
+                } else {
+                    parent.appendChild(element);
+                }
             });
             this.onHtmlLoaded(parent);
             this.htmlName = htmlName;
