@@ -10,25 +10,21 @@ export class ComponentLoader {
         this.componentDirectory = 'component';
     }
 
-    load(htmlFile) {
-        return new Promise((resolve,reject) =>{
-            assert.notEmpty(htmlFile);
-            const fileExt = htmlFile.split('.');
-            var fileName = htmlFile;
-            var ext = '.html';
-            if (fileExt.length > 1) {
-                ext = fileExt[fileExt.length-2];
-                file = htmlFile.substr(htmlFile.length-ext.length);
-            }
-            const filename=`${this.componentDirectory}/${fileName}${ext}`;
-            httpRequest.get(filename)
-            .then(contents=>{
-                const htmlObject = document.createElement('div');
-                htmlObject.innerHTML = contents.trim();
-                const elements = Array.from(htmlObject.childNodes);
-                resolve(elements);
-            });
-        });
+    async load(htmlFile) {
+        assert.notEmpty(htmlFile);
+        const fileExt = htmlFile.split('.');
+        var fileName = htmlFile;
+        var ext = '.html';
+        if (fileExt.length > 1) {
+            ext = fileExt[fileExt.length-2];
+            file = htmlFile.substr(htmlFile.length-ext.length);
+        }
+        const filename=`${this.componentDirectory}/${fileName}${ext}`;
+        const contents = await httpRequest.get(filename);
+        const htmlObject = document.createElement('div');
+        htmlObject.innerHTML = contents.trim();
+        const elements = Array.from(htmlObject.childNodes);
+        return elements;
     }
 }
 

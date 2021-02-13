@@ -6,7 +6,7 @@ import env_dev from './browser/browser-env-dev.js';
 var env = null;
 if (typeof process === 'undefined') {
     // browser, so set to the correct env file.
-    if (location.port == "60800") {
+    if (location.port == "6080") {
         env = env_dev;
     } else {
         env = env_prod;

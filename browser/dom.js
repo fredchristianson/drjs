@@ -10,34 +10,34 @@ export class DOM {
         this.root = document.querySelector(rootSelector);
     }
 
-    first(parent,selector) {
+    getParentAndSelector(opts) {
+        var parent=document;
+        var selector='*';
         // if 1 arg is passed parent is assumed to be the document
         // and the arg is the selector
-        if (typeof parent === 'string') {
-            if (selector != null) {
-                log.error("invalid parent for dom.find() ",parent);
-                return [];
-            }
-            selector = parent;
-            parent = document;
-        } 
-        const element = parent.querySelector(selector);
+        if (opts.length == 1) {
+            selector = opts[0];
+        } else if (opts.length == 2) {
+            parent = opts[0];
+            selector = opts[1];
+        } else {
+            assert.false("invalid options passed.  expect (selector) or (parent,selector)");
+        }
+        assert.type(parent,[HTMLElement,HTMLDocument],"parent must be an HTMLElement");
+        return {parent: parent, selector: selector};
+    }
+
+    first(...opts) {
+        const sel = this.getParentAndSelector(opts);
+         
+        const element = sel.parent.querySelector(sel.selector);
         
         return element;
     }
 
-    find(parent,selector= null) {
-        // if 1 arg is passed parent is assumed to be the document
-        // and the arg is the selector
-        if (typeof parent === 'string') {
-            if (selector != null) {
-                log.error("invalid parent for dom.find() ",parent);
-                return [];
-            }
-            selector = parent;
-            parent = document;
-        } 
-        const elements = document.querySelectorAll(selector);
+    find(...opts) {
+       const sel = this.getParentAndSelector(opts);
+        const elements = sel.parent.querySelectorAll(sel.selector);
         
         return Array.from(elements);
     }
@@ -146,6 +146,30 @@ export class DOM {
             element.classList.remove(className);
         });
     }
-}
 
-export default new DOM();
+    remove(element) {
+        if (element == null) {
+            return ;
+        }
+        if (Array.isArray(element)) {
+            element.forEach(this.remove.bind(this));
+        }
+        assert.type(element,HTMLElement,"dom.remove() only works on HTMLElement");
+        const parent = element.parentNode;
+        if (parent != null) {
+            parent.removeChild(element);
+        } else {
+            log.warn("dome.remove called on element that is not in dom");
+        }
+    }
+
+    append(parent,elements){
+        util.toArray(elements).forEach(element=>{
+            parent.appendChild(element);
+        });
+    }
+}
+const dom = new DOM();
+window.drjs = window.drjs || {};
+window.drjs.dom = dom;
+export default dom;

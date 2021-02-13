@@ -16,6 +16,8 @@ export class ComponentBase {
         this.loadingHtmlName = htmlName;
         componentLoader.load(htmlName)
         .then(elements=>{
+            log.debug("loaded component ",htmlName, " into ",selector);
+            elements = this.onHtmlLoaded(elements) || elements;
             const parent = dom.first(selector);
             if (parent == null) {
                 throw new Error(`cannot find parent selector ${selector} for html file ${htmlName}`);
@@ -23,19 +25,12 @@ export class ComponentBase {
             parent.innerHTML = '';
             var body = document.body;
             elements.forEach(element=>{
-                if (element.tagName == 'SCRIPT' && !util.isEmpty(element.getAttribute('src'))) {
-                    const script = document.createElement('script');
-                    script.src = element.getAttribute('src');
-                    body.append(script);
-                } else if (element.tagName == 'SCRIPT' && element.getAttribute('type') === 'application/javascript') {
-                    const script = document.createElement('script');
-                    script.innerHTML = element.innerHTML;
-                    body.append(script);
-                } else {
-                    parent.appendChild(element);
-                }
+                parent.appendChild(element);
             });
-            this.onHtmlLoaded(parent);
+
+            this.onHtmlInserted(parent);
+            this._processScripts(parent);
+            this.afterScriptsProcessed(parent);
             this.htmlName = htmlName;
             this.selector = selector;
         })
@@ -44,8 +39,50 @@ export class ComponentBase {
         });
     }
 
-    onHtmlLoaded() {
-        // derived class can override if it needs to modify html
+    onHtmlLoaded(elements) {
+        // this is called on loaded elements before they are inserted
+        // into the document. one or more elements may be loaded so an array is passed.
+
+        // derived class can override this to modify html.  If an array is returned, 
+        // it is inserted rather than the original array.  
+        // if null or "undefined" is returned the original array with potentially modified elements is inserted
+    }
+
+    onHtmlInserted(parent) {
+        // called after the html has been inserted to the dom.  scripts have not been processed and
+        // are still in the inserted html.
+    }
+
+    afterScriptsProcessed(parent) {
+        // this is called after any <scripts> in the component are inserted and processed
+    }
+
+    _processScripts(parent) {
+        // called to find any external or inline javascript <scripts> in the component.
+        // derived classes should not override that.  is something is needed after processing scripts
+        // it should be done in afterScriptsProcessed()
+        //
+        // <scripts> created from setting innerHTML on an element are not executed.
+        // create a new element with document.createElement().  Other scripts are not modified or moved (e.g. templates)
+        // 
+        const scripts = dom.find(parent,'script');
+        scripts.forEach(script=>{
+            var newScript = null;
+            if (!util.isEmpty(script.getAttribute('src'))) {
+                newScript = document.createElement('script');
+                newScript.src = script.getAttribute('src');
+                log.debug("inserted script src=",newScript.src);
+            } else if (script.getAttribute('type') === 'application/javascript') {
+                newScript = document.createElement('script');
+                newScript.innerHTML = script.innerHTML;
+                log.debug("inserted inline script ");
+            }
+            if (newScript != null) {
+                dom.remove(script);
+                document.body.append(newScript);
+                log.debug("added script to dom");
+            }
+        });
     }
 }
 

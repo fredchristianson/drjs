@@ -9,9 +9,10 @@ export class HttpRequest {
         this.baseUrl = baseUrl;
     }
 
-    get(path,params=null,responseType='text') {
-        return new Promise((resolve,reject)=>{
-            const fullPath = this.baseUrl+encodeURI(path).replaceAll('//','/');
+    async get(path,params=null,responseType='text') {
+        const promise = new Promise((resolve,reject)=>{
+            
+            const fullPath = util.combinePath(this.baseUrl,encodeURI(path))+this.encodeParams(params);
             var xhttp = new XMLHttpRequest();
             xhttp.responseType = responseType;
             xhttp.onreadystatechange = ()=> {
@@ -25,6 +26,21 @@ export class HttpRequest {
             xhttp.open("GET", fullPath, true);
             xhttp.send();
         });
+        const result = await promise;
+        return result;
+    }
+
+    encodeParams(params) {
+        if (params == null) {
+            return '';
+        }
+        const encoded = ['?'];
+        Object.keys(params).forEach(key=>{
+            encoded.push(key);
+            encoded.push('=');
+            encoded.push(encodeURIComponent(params[key]));
+        });
+        return encoded.join('');
     }
 }
 

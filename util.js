@@ -241,6 +241,31 @@ export class Util  {
 
     }
 
+    combinePath(...parts){
+        if (parts == null || this.isEmpty(parts)) {
+            return '';
+        } else if (typeof parts === 'string') {
+            return parts;
+        } else if (Array.isArray(parts)) {
+            const first = parts.shift();
+            const rest = this.combinePath(...parts);
+            if (this.isEmpty(rest)) {
+                return first;
+            } else if (first.endsWith('/')) {
+                if (rest.startsWith('/')){
+                    return first + rest.substr(1);
+                } else {
+                    return first + rest;
+                }
+            } else {
+                if (rest.startsWith('/')){
+                    return first + rest;
+                } else {
+                    return first + '/'+rest;
+                }
+            }
+        }
+    }
 }
 
 const singleton = new Util();

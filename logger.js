@@ -60,4 +60,9 @@ export function createLogger(moduleName,level = LOG_LEVEL.DEFAULT) {
     return new Logger(moduleName,level);
 }
 
+if (typeof window != 'undefined') {
+    window.drjs = window.drjs || {};
+    window.drjs.createLogger = createLogger;
+}
+
 export default {create: createLogger};
