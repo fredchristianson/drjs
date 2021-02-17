@@ -178,7 +178,7 @@ export class ConsoleWriter extends LogWriter {
     }
 
     write(text, origMessage) {
-        if (origMessage.level <= LOG_LEVEL.ERROR) {
+        if (origMessage.level.value <= LOG_LEVEL.ERROR.value) {
             console.error(text);
         } else {
             console.log(text);

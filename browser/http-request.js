@@ -34,13 +34,11 @@ export class HttpRequest {
         if (params == null) {
             return '';
         }
-        const encoded = ['?'];
+        const pairs = [];
         Object.keys(params).forEach(key=>{
-            encoded.push(key);
-            encoded.push('=');
-            encoded.push(encodeURIComponent(params[key]));
+            pairs.push(`${key}=${encodeURIComponent(params[key])}`);
         });
-        return encoded.join('');
+        return `?${pairs.join('&')}`;
     }
 }
 

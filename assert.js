@@ -87,7 +87,17 @@ export class Assert {
         }
     }
 
+
+    test(val,message) {
+
+        if (!val) {
+            log.error(message);
+            throw new AssertionError(message);
+        }
+    }
+
     false(message) {
+        log.warn("assert.false is deprecated.  Use assert.test(false,'message')");
         // this can be used if the caller did the assertion test
         log.error(message);
         throw new AssertError(message);

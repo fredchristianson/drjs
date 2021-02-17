@@ -32,9 +32,8 @@ export class Api {
         if (response.success) {
             return response.data;
         }
-        else {
-            throw new ApiError(requet,params,response);
-        }
+        log.error(`API request `,request, `failed" `,response);
+        throw new ApiError(request,params,response);
     }
 }
 

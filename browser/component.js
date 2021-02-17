@@ -8,7 +8,9 @@ const log = Logger.create("Component");
 
 export class ComponentBase {
     constructor(selector,htmlName) {
-        this.load(selector,htmlName);
+        if (!util.isEmpty(htmlName)) {
+            this.load(selector,htmlName);
+        }
     }
 
     load(selector,htmlName) {
@@ -27,16 +29,30 @@ export class ComponentBase {
             elements.forEach(element=>{
                 parent.appendChild(element);
             });
+            this.elements = elements;
+            this.parent = parent;
 
-            this.onHtmlInserted(parent);
-            this._processScripts(parent);
-            this.afterScriptsProcessed(parent);
+            this.onHtmlInserted(elements);
+            this.attach(elements);
+            this._processScripts(elements);
+            this.afterScriptsProcessed(elements);
             this.htmlName = htmlName;
             this.selector = selector;
         })
         .catch(err=>{
             log.error("failed to load comonent html file ",htmlName,err);
         });
+    }
+
+    attach(elements) {
+        this.elements = util.toArray(elements);
+        this.parent = elements[0].parentNode;
+        this.onAttached(this.elements,this.parent);
+    }
+
+    onAttached(elements){
+        // allows derived classes to setup the html for this component.
+        // 
     }
 
     onHtmlLoaded(elements) {
@@ -53,11 +69,11 @@ export class ComponentBase {
         // are still in the inserted html.
     }
 
-    afterScriptsProcessed(parent) {
+    afterScriptsProcessed(elements) {
         // this is called after any <scripts> in the component are inserted and processed
     }
 
-    _processScripts(parent) {
+    _processScripts(elements) {
         // called to find any external or inline javascript <scripts> in the component.
         // derived classes should not override that.  is something is needed after processing scripts
         // it should be done in afterScriptsProcessed()
@@ -65,7 +81,8 @@ export class ComponentBase {
         // <scripts> created from setting innerHTML on an element are not executed.
         // create a new element with document.createElement().  Other scripts are not modified or moved (e.g. templates)
         // 
-        const scripts = dom.find(parent,'script');
+        const childScripts = dom.find(elements,'script');
+        const scripts = childScripts.concat(elements.filter(elem=>{return elem.tag=='SCRIPT';}))
         scripts.forEach(script=>{
             var newScript = null;
             if (!util.isEmpty(script.getAttribute('src'))) {

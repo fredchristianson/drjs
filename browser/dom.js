@@ -23,23 +23,60 @@ export class DOM {
         } else {
             assert.false("invalid options passed.  expect (selector) or (parent,selector)");
         }
-        assert.type(parent,[HTMLElement,HTMLDocument],"parent must be an HTMLElement");
+        if (Array.isArray(parent)) {
+            parent = parent.filter(elem=>{
+                const validParent = elem instanceof HTMLElement || elem instanceof HTMLDocument;
+                if (!validParent) {
+                    // don't assert and throw an error since there are cases where Text nodes are in the array.
+                    // this keeps users from needing to filter out Text nodes when looking for children.
+                    log.warn("parent array contains item that cannot be an HTMLElement parent");
+                }
+                return validParent;
+            });
+        } else {
+            assert.type(parent,[HTMLElement,HTMLDocument],"parent must be an HTMLElement");
+        }
         return {parent: parent, selector: selector};
     }
 
     first(...opts) {
         const sel = this.getParentAndSelector(opts);
-         
-        const element = sel.parent.querySelector(sel.selector);
-        
-        return element;
+        try {
+            var element = null;
+            if (sel.selector instanceof HTMLElement) {
+                // a DOM element was passed as a selector, so return it
+                element = sel.selector;
+            } else if (Array.isArray(sel.parent)) {
+                element = null;
+                for(var idx=0;element == null && idx<sel.parent.length;idx++) {
+                    element = sel.parent[idx].querySelector(sel.selector);
+                }
+                
+            } else {
+                element = sel.parent.querySelector(sel.selector);
+            }
+            return element;
+        } catch(err) {
+            log.error("failed to find first child of selector ",sel.selector,err);
+            return null;   
+        }
     }
 
     find(...opts) {
-       const sel = this.getParentAndSelector(opts);
-        const elements = sel.parent.querySelectorAll(sel.selector);
+        const sel = this.getParentAndSelector(opts);
+        if (sel.selector instanceof HTMLElement) {
+            // a DOM element was passed as a selector, so return it
+            element = sel.selector;
+        } else if (Array.isArray(sel.parent)) {
+            const childLists = sel.parent.map(parent=>{
+                return Array.from(parent.querySelectorAll(sel.selector));
+            });
+            return [].concat(...childLists);
+        } else {
+            const elements = sel.parent.querySelectorAll(sel.selector);
+            return Array.from(elements);
+        }
         
-        return Array.from(elements);
     }
 
     hide(element) {

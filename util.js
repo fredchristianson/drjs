@@ -41,7 +41,7 @@ export class Util  {
 
     toString(item) {
         // return a string value of the item.  If it is JSON, remove cycles
-        const type = typeof Object;
+        const type = typeof item;
         if (this.isEmpty(item)) {
             return "";
         } else if (type === 'string') {
