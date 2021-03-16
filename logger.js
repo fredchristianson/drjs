@@ -2,6 +2,7 @@
 
 import {logWriterManager,LOG_LEVEL,LogLevel, LoggerModule, LogWriter, LogMessage} from './log-writer.js';
 import {OptionDef,default as Util} from './util.js';
+import {setLoggerImplementation} from './logger-interface.js';
 import ENV from './env.js';
 
 //export const LOG_LEVEL = BASE_LOG_LEVEL;
@@ -19,7 +20,7 @@ export class Logger {
 
     write(messages) {
         Util.toArray(messages).forEach(message=>{
-            logWriterManager.write(message,this.writers);
+            logWriterManager.write(message,this.options.writers);
         });
     }
 
@@ -28,7 +29,7 @@ export class Logger {
         //  log.debug("a",1,{foo:bar})
         // results in messageParts = ["a",1,{foo:bar}]
         const message = new LogMessage(level,messageParts,this.module);
-        logWriterManager.write(message,this.writers);
+        logWriterManager.write(message,this.options.writers);
     }
 
     debug(...msg) {
@@ -64,5 +65,7 @@ if (typeof window != 'undefined') {
     window.drjs = window.drjs || {};
     window.drjs.createLogger = createLogger;
 }
+
+setLoggerImplementation(Logger);
 
 export default {create: createLogger};

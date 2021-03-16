@@ -222,7 +222,7 @@ export class LogWriterManager {
     }
     
     write(message,writers=null) {
-
+        writers = util.toArray(writers);
         const formats = {};
         this.writers.forEach(writer=>{
             if (util.isEmpty(writers) || writers.includes(writer) ) {

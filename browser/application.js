@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 import Logger from "../logger";
 import assert from '../assert.js';
+=======
+import Logger from "./logger";
+import assert from './assert.js';
+>>>>>>> feature/assert
 const log = Logger.create("Application");
 export var app = null;
 

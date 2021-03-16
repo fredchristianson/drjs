@@ -1,5 +1,5 @@
-import Logger from './logger.js';
-const log = Logger.create('Assert');
+import LoggerInterface from './logger-interface.js';
+const log = new LoggerInterface('Assert');
 
 export class AssertionError  extends Error{
     constructor(message='assertion failed'){
@@ -8,47 +8,30 @@ export class AssertionError  extends Error{
 }
 
 export class Assert {
+
     equal(val1,val2,message=null) {
-        if (val1 == val2) {
-            return;
-        }
-
-        const err = new Error(message || "assert.equal() failed");
-        log.error(err);
-        throw err;
+        this.test(()=>val1==val2,message || "assert.equal() failed");
     }
 
-    notEmpty(val,message) {
-        try {
-            if (val == null || (typeof val != 'string' && !Array.isArray(val))) {
-                throw new AssertionError(message || 'assert.notEmpty() failed.  Requires string or array');   
-            } else if (typeof val == 'string' && val.trim().length == 0) {
-                throw new AssertionError(message || 'assert.notEmpty() failed.  String is empty');   
-            } else if (Array.isArray(val) && val.length == 0) {
-                throw new AssertionError(message || 'assert.notEmpty() failed.  Array is empty');   
-            } 
-        } catch(err) {
-            log.error(err);
-            throw err;
-        }
+    notEqual(val1,val2,message=null) {
+        this.test(()=>val1!=val2,message || "assert.notEqual() failed");
     }
 
-    notNull(item,message) {
-        // treat "undefined" and null items the same
-        if (typeof item === 'undefined' || item === null) {
-            message || "value cannot be null";
-            log.error(message);
-            throw new AssertionError(message);
-        }
+
+    null(val1,message=null) {
+        this.test(()=>val1===null || (typeof val1 === 'undefined'),message || "assert.null() failed");
     }
 
-    null(item,message) {
-        // treat "undefined" and null items the same
-        if (typeof item !== 'undefined' && item !== null) {
-            message || "expected null value";
-            log.error(message);
-            throw new AssertionError(message);
-        }
+    notNull(val1,message=null) {
+        this.test(()=>val1!==null && (typeof val1 !== 'undefined'),message || "assert.notNull() failed");
+    }
+
+    range(val,minValue,maxValue,message) {
+        this.test(()=>val>=minValue && val <= maxValue,message || "assert.notEqual() failed");
+    }
+
+    notRange(val,minValue,maxValue,message) {
+        this.test(()=>val<minValue || val > maxValue,message || "assert.notEqual() failed");
     }
 
     empty(item,message) {
@@ -66,9 +49,19 @@ export class Assert {
             throw new AssertionError(message);
         }
     }
-    range(val,min,max,message = null) {
-        if (val < min || val > max) {
-            throw new AssertionError(message || `value must be at least ${min} and at most ${max}: ${val}`);
+
+    notEmpty(val,message) {
+        try {
+            if (val == null || (typeof val != 'string' && !Array.isArray(val))) {
+                throw new AssertionError(message || 'assert.notEmpty() failed.  Requires string or array');   
+            } else if (typeof val == 'string' && val.trim().length == 0) {
+                throw new AssertionError(message || 'assert.notEmpty() failed.  String is empty');   
+            } else if (Array.isArray(val) && val.length == 0) {
+                throw new AssertionError(message || 'assert.notEmpty() failed.  Array is empty');   
+            } 
+        } catch(err) {
+            log.error(err);
+            throw err;
         }
     }
 

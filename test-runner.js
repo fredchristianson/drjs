@@ -3,7 +3,6 @@ import Logger from './logger.js';
 import {InMemoryWriter} from './log-writer.js';
 
 import util from './util.js';
-import testRunner from '../../test/test.js';
 
 const memoryLog = new InMemoryWriter();
 const log = Logger.create("TestRunner", memoryLog);
