@@ -34,6 +34,11 @@ export class TestResult {
         }
     }
 
+    fail(errorMessage='') {
+        this.success = false;
+        log.error(`${this.name} failed. ${errorMessage}`);
+    }
+
 }
 
 export class TestSuite {

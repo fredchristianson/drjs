@@ -40,12 +40,11 @@ class TestLogWriter extends LogWriter {
 }
 
 export class LoggerTests extends TestSuite {
-    constructor(name="String Tests"){
+    constructor(name="Logger Tests"){
         super(name);
     }
  
     testLogger(testResult) {
-        log.debug("Testing Logger");
         const writer = new TestLogWriter();
         const logger = new Logger("testLogger",LOG_LEVEL.DEBUG,writer);
         testMessages.forEach(msg=>{
@@ -55,13 +54,12 @@ export class LoggerTests extends TestSuite {
         const logMessages = writer.getLines();
 
         testMessages.forEach((orig,index)=>{
-            testResult.assertEqual(orig.message,logMessages[index].text)
+            testResult.assertEqual(orig.message,logMessages[index].text);
         });
 
     }
 
     testLoggerInterface(testResult) {
-        log.debug("Testing Logger");
         const writer = new TestLogWriter();
         const logger = new LoggerInterface("testLogger",LOG_LEVEL.DEBUG,writer);
         testMessages.forEach(msg=>{

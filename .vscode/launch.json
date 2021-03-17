@@ -11,7 +11,16 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}\\tests\\logging-test.js"
+            "program": "${workspaceFolder}\\test\\logging-test.js"
+        },
+        {
+            "type": "pwa-node",
+            "request": "launch",
+            "name": "All Tests",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}\\test\\run-all.js"
         }
     ]
 }

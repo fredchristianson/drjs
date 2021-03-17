@@ -82,7 +82,9 @@ export class Assert {
 
 
     test(val,message) {
-
+        if (typeof val == 'function') {
+            val = val();
+        }
         if (!val) {
             log.error(message);
             throw new AssertionError(message);
