@@ -266,6 +266,38 @@ export class Util  {
             }
         }
     }
+
+    debounce(func,msecs=2000){
+        var timer = null;
+        var debouncer = function(){
+            if (timer != null) {
+                clearTimeout(timer);
+            }
+            timer = setTimeout(()=>{
+                timer = null;
+                func();
+            },msecs);
+        }
+        return debouncer;
+        
+    }
+
+    intersect(arr1,arr2, compareFunction=null) {
+        var result = [];
+        if (arr1 == null || arr1.length==0 || arr2.length==0) { return result;}
+        arr1.forEach(item1=>{
+            if (arr2.find(item2=>{
+                if (compareFunction == null) {
+                    return item1==item2;
+                } else {
+                    return compareFunction(item1,item2);
+                }
+            }) != null){
+                result.push(item1);
+            }
+        });
+        return result;
+    }
 }
 
 const singleton = new Util();

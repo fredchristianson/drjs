@@ -1,16 +1,13 @@
-<<<<<<< HEAD
-import Logger from "../logger";
+import Logger from "../logger.js";
 import assert from '../assert.js';
-=======
-import Logger from "./logger";
-import assert from './assert.js';
->>>>>>> feature/assert
+import env from '../env.js';
 const log = Logger.create("Application");
 export var app = null;
 
+
 export class Application {
     constructor(name="unnamed") {
-
+        env.THEAPP = this;
         app = this;
         this.name = name;
         log.debug("application",name,"initialized");
@@ -18,7 +15,9 @@ export class Application {
 
     start() {
         log.debug("application",this.name,"started");
+        this.initialize();
     }
-}
 
+    initialize() {}
+}
 export default Application;

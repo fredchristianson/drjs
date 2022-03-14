@@ -1,7 +1,7 @@
 import assert from '../assert.js';
 import Logger from '../logger.js';
-import util from '../util.js';
-import dom from './dom.js';
+import util, { Util } from '../util.js';
+import DOM from './dom.js';
 
 const log = Logger.create("HtmlTemplate");
 
@@ -56,6 +56,29 @@ export class AttributeValue extends TemplateValue {
 }
 
 
+export class PropertyValue extends TemplateValue {
+    constructor(attributeName, value=true) {
+        super(value);
+        this.attributeName = attributeName;
+    }
+
+    set(element) {
+        DOM.setProperty(element,this.attributeName,this._value);
+    }
+}
+
+
+export class ClassValue extends TemplateValue {
+    constructor(value=true) {
+        super(value);
+    }
+
+    set(element) {
+        DOM.addClass(element,this._value);
+    }
+}
+
+
 export class DataValue extends TemplateValue {
     constructor(attributeName, value=null) {
         super(value);
@@ -72,18 +95,43 @@ export class DataValue extends TemplateValue {
 }
 
 export class HtmlTemplate {
-    constructor(templateElement) {
-        assert.type(templateElement,HTMLElement,"HtmlTemplate requires an HTMLElement");
+    constructor(templateElement, initValues=null) {
         this.templateElement = templateElement;
         if (typeof this.templateElement === 'string') {
             this.nodes = this.stringToNodes(this.templateElement);
-        } else if (this.templateElement.tagName == 'SCRIPT') {
+        } else if (this.templateElement && this.templateElement.tagName == 'SCRIPT') {
             // if the template is a script, process all elements in it
             this.nodes = this.stringToNodes(this.templateElement.innerHTML);
         } else {
             // the template is not a script, so there is only one node to process
             this.nodes = [this.templateElement];
         }
+        this.initialize(initValues);
+
+    }
+
+    initialize(values) {
+        if (values == null) { return;}
+        this.nodes = this.fill(values);
+
+    }
+    
+    getFirstNode() {
+        var nodes = this.nodes.map(node=>{ 
+            var clone = node.cloneNode(true);
+            DOM.remove(DOM.find(clone,'.repeat'));
+            return clone;
+        });
+        return nodes[0];
+    }
+    getNodes() { 
+        var nodes = this.nodes.map(node=>{ 
+            var clone = node.cloneNode(true);
+            DOM.remove(DOM.find(clone,'.repeat'));
+            return clone;
+        });
+        return nodes;
+        
     }
 
     stringToNodes(text) {
@@ -98,16 +146,33 @@ export class HtmlTemplate {
         const filled = [];
         this.nodes.forEach(node=>{
             const clone = node.cloneNode(true);
-            Object.keys(values).forEach(selector=>{
-                const value = values[selector];
-                const elements = dom.find(clone,selector);
-                elements.forEach(element=>{
-                    this.setValue(element,value);
-                });
-            });
+            this.fillNode(clone,values);
             filled.push(clone);
         });
         return filled;
+    }
+
+    fillNode(node,values){
+        Object.keys(values).forEach(selector=>{
+            const value = values[selector];
+            const elements = node.matches(selector) ? [node] : DOM.find(node,selector);
+            elements.forEach(element=>{
+                if (DOM.hasClass(element,'repeat') && Array.isArray(value)) {
+                    value.forEach(val=>{
+                        const clone = element.cloneNode(true);
+                        if (typeof (val) == 'object' && !(val instanceof TemplateValue)){
+                            this.fillNode(clone,val);
+                        } else {
+                            this.setValue(clone,val);
+                        }
+                        DOM.removeClass(clone,'repeat');
+                        element.parentNode.appendChild(clone);
+                    });
+                } else {
+                    this.setValue(element,value);
+                }
+            });
+        });
     }
 
     setValue(element,value) {

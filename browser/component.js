@@ -2,29 +2,41 @@ import assert from '../assert.js';
 import Logger from '../logger.js';
 import util from '../util.js';
 import componentLoader from './component-loader.js';
-import dom from './dom.js';
+import DOM from './dom.js';
+import DOMEvent from './dom-event.js';
 
 const log = Logger.create("Component");
 
 export class ComponentBase {
     constructor(selector,htmlName) {
+        this.name = htmlName;
+        this.loaded = false;
         if (!util.isEmpty(htmlName)) {
             this.load(selector,htmlName);
         }
     }
 
+    isLoaded() { return this.loaded;}
+    getName() { return this.name;}
+    getElements() { return this.elements;}
+    getSelector() { return this.selector;}
+
     load(selector,htmlName) {
+        this.loaded = false;
         this.loadingSelector = selector;
         this.loadingHtmlName = htmlName;
         componentLoader.load(htmlName)
         .then(elements=>{
             log.debug("loaded component ",htmlName, " into ",selector);
             elements = this.onHtmlLoaded(elements) || elements;
-            const parent = dom.first(selector);
+            const parent = DOM.first(selector);
             if (parent == null) {
                 throw new Error(`cannot find parent selector ${selector} for html file ${htmlName}`);
             }
-            parent.innerHTML = '';
+            this.detach(parent);
+            
+        parent.innerHTML = '';
+            DOM.setProperty(parent,"_componentBase",this);
             var body = document.body;
             elements.forEach(element=>{
                 parent.appendChild(element);
@@ -38,16 +50,33 @@ export class ComponentBase {
             this.afterScriptsProcessed(elements);
             this.htmlName = htmlName;
             this.selector = selector;
+            this.loaded = true;
+            DOMEvent.triggerComponentLoaded(this);
         })
         .catch(err=>{
             log.error("failed to load comonent html file ",htmlName,err);
         });
     }
 
+    detach(parent) {
+        log.debug("detaching");
+        var component = DOM.getProperty(parent,"_componentBase");
+        if (component && component.onDetach) {
+            component.onDetach();
+        } else {
+            log.debug("no component attached");
+        }
+    }
+
+    onDetach() {
+        log.debug("onDetach");
+    }
+
     attach(elements) {
         this.elements = util.toArray(elements);
         this.parent = elements[0].parentNode;
         this.onAttached(this.elements,this.parent);
+        this.loaded = true;
     }
 
     onAttached(elements){
@@ -65,7 +94,7 @@ export class ComponentBase {
     }
 
     onHtmlInserted(parent) {
-        // called after the html has been inserted to the dom.  scripts have not been processed and
+        // called after the html has been inserted to the DOM.  scripts have not been processed and
         // are still in the inserted html.
     }
 
@@ -81,7 +110,7 @@ export class ComponentBase {
         // <scripts> created from setting innerHTML on an element are not executed.
         // create a new element with document.createElement().  Other scripts are not modified or moved (e.g. templates)
         // 
-        const childScripts = dom.find(elements,'script');
+        const childScripts = DOM.find(elements,'script');
         const scripts = childScripts.concat(elements.filter(elem=>{return elem.tag=='SCRIPT';}))
         scripts.forEach(script=>{
             var newScript = null;
@@ -95,7 +124,7 @@ export class ComponentBase {
                 log.debug("inserted inline script ");
             }
             if (newScript != null) {
-                dom.remove(script);
+                DOM.remove(script);
                 document.body.append(newScript);
                 log.debug("added script to dom");
             }

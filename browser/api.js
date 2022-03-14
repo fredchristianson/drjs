@@ -37,5 +37,5 @@ export class Api {
     }
 }
 
-const api = new Api(env.BASE_URL);
+const api = new Api(env.BASE_URL); 
 export default api;

@@ -1,7 +1,8 @@
 
 export const ENV ={
     DEBUG: true,
-    BASE_URL: '/api/v1'
+    PROD: false,
+    API_BASE_URL: '/api/v1'
 };
 
 export default ENV;
