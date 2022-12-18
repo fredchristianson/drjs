@@ -3,7 +3,7 @@ import { LOG_LEVEL } from "../logger-interface.js";
 import Logger from "../logger.js";
 import Util from "../util.js";
 import { DOM, default as dom } from "./dom.js";
-
+import { OnNextLoop } from "./timer.js";
 const log = Logger.create("Event", LOG_LEVEL.WARN);
 
 export class HandlerResponse {}
@@ -377,6 +377,7 @@ export class EventHandler {
     this.selector = null;
     this.excludeSelector = null;
     this.data = null;
+    this.dataSource = null;
     this.debounceMSecs = 0;
     this.debounceTimer = null;
     this.withShift = null;
@@ -452,7 +453,7 @@ export class EventHandler {
   }
 
   setData(data) {
-    this.data = data;
+    this.dataSource = data;
     return this;
   }
 
@@ -494,9 +495,12 @@ export class EventHandler {
     return this;
   }
 
-  getEventItem(event) {
+  getEventTarget(event) {
     if (this.selector == null) {
       return event.currentTarget;
+    }
+    if (event.target == null) {
+      return null;
     }
     if (event.target.matches(this.selector)) {
       return event.target;
@@ -520,6 +524,9 @@ export class EventHandler {
     if (this.withShift && !event.shiftKey) {
       return ResponseContinue;
     }
+    event.hasShift = event.shiftKey;
+    event.hasAlt = event.altKey;
+    event.hasCtrl = event.ctrlKey;
     if (this.debounceMSecs > 0) {
       if (this.debounceTimer) {
         clearTimeout(this.debounceTimer);
@@ -543,6 +550,13 @@ export class EventHandler {
       event.target.matches(this.excludeSelector)
     ) {
       return;
+    }
+    if (this.dataSource) {
+      if (typeof this.dataSource == "function") {
+        this.data = this.dataSource(this.getEventTarget(event));
+      } else {
+        this.data = this.dataSource;
+      }
     }
     if (this.handlerFunc) {
       var func = this.handlerFunc;
@@ -641,7 +655,7 @@ export class ClickHandler extends EventHandler {
     if (method != null) {
       var func = method.getMethod(defaultName);
       if (func) {
-        func(this.getEventItem(event), this.data, event, this);
+        func(this.getEventTarget(event), this.data, event, this);
         return true;
       }
     }
@@ -672,7 +686,7 @@ export class ClickHandler extends EventHandler {
       if (event.type == "click" && this.onClick != null) {
         var clickMethod = this.onClick.getMethod({ defaultName: "onClick" });
         if (clickMethod) {
-          clickMethod(this.getEventItem(event), this.data, event, this);
+          clickMethod(this.getEventTarget(event), this.data, event, this);
         }
       }
       if (event.type == "mouseup") {
@@ -1065,6 +1079,45 @@ export class ObjectListener extends EventHandler {
   }
 }
 
+class AsyncEventDispatcher {
+  constructor() {
+    this.queue = null;
+  }
+
+  schedule(typeName, details) {
+    if (this.queue == null) {
+      this.queue = [];
+      // schedule dispatch on next loop
+      OnNextLoop(() => {
+        this.dispatchEvents();
+      });
+    }
+    this.queue.push({ typeName, details });
+  }
+  dispatchEvents() {
+    if (this.queue == null) {
+      return;
+    }
+    var todo = this.queue;
+    this.queue = null;
+    while (todo.length > 0) {
+      const def = todo.shift();
+      const event = new CustomEvent(def.typeName, { detail: def.details });
+      dom.getBody().dispatchEvent(event);
+    }
+  }
+  isScheduled(typeName, detailsMatchFunction) {
+    if (this.queue == null) {
+      return false;
+    }
+    return this.queue.find((def) => {
+      return def.typeName == typeName && detailsMatchFunction(def.details);
+    });
+  }
+}
+
+const asyncDispatcher = new AsyncEventDispatcher();
+
 export class EventEmitter {
   constructor(type, object) {
     this.type = type;
@@ -1091,6 +1144,22 @@ export class EventEmitter {
       type: this.type,
     };
     log.debug(`EventEmitter.emit ${this.typeName}`);
+    if (
+      !asyncDispatcher.isScheduled(this.typeName, (details) => {
+        return details.data == data;
+      })
+    ) {
+      asyncDispatcher.schedule(this.typeName, detail);
+    }
+  }
+
+  emitNow(data) {
+    const detail = {
+      object: this.object,
+      data: data,
+      typeName: this.typeName,
+      type: this.type,
+    };
     const event = new CustomEvent(this.typeName, { detail: detail });
     dom.getBody().dispatchEvent(event);
   }
