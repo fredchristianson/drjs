@@ -125,6 +125,9 @@ export class DOM {
     } else {
       const elements = sel.parent.querySelectorAll(sel.selector);
       result = Array.from(elements);
+      if (sel.parent.matches && sel.parent.matches(sel.selector)) {
+        result.push(sel.parent);
+      }
     }
     return result;
   }
@@ -182,6 +185,22 @@ export class DOM {
       name = `data-${name}`;
     }
     const val = element.getAttribute(name);
+    return val;
+  }
+
+  getDataWithParent(element, name) {
+    if (element == null) {
+      return null;
+    }
+    assert.notNull(element, "setData requires an element");
+    assert.notEmpty(name, "setData requires a name");
+    if (!name.startsWith("data-")) {
+      name = `data-${name}`;
+    }
+    const val = element.getAttribute(name);
+    if (val == null) {
+      return this.getDataWithParent(element.parentElement, name);
+    }
     return val;
   }
 
@@ -385,7 +404,9 @@ export class DOM {
 
   check(elements, checked = true) {
     this.find(elements).forEach((element) => {
-      element.checked = checked;
+      if (typeof element.checked == "undefined" || element.checked != checked) {
+        this.setProperty(element, "checked", checked);
+      }
     });
   }
 
