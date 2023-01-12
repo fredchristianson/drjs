@@ -112,7 +112,7 @@ export class DOM {
     const sel = this.getParentAndSelector(opts);
     if (Array.isArray(sel.selector)) {
       result = sel.selector.reduce((arr, e) => {
-        arr.push(this.find(sel.parent, e));
+        arr.push(...this.find(sel.parent, e));
         return arr;
       }, []);
     } else {
@@ -317,6 +317,12 @@ export class DOM {
   }
 
   removeClass(elements, className) {
+    if (Array.isArray(className)) {
+      className.forEach((cn) => {
+        this.removeClass(elements, cn);
+      });
+      return;
+    }
     this.find(elements).forEach((element) => {
       element.classList.remove(className);
     });
@@ -499,13 +505,10 @@ export class DOM {
     }
     var next = element.parentElement;
     while (next != null) {
-      parentList.push(next);
       if (next == selector || this.matches(next, selector)) {
-        next = null;
-      } else {
-        next = next.parentElement;
+        parentList.push(next);
       }
-      return [];
+      next = next.parentElement;
     }
 
     return parentList;
@@ -556,12 +559,12 @@ export class DOM {
     Object.getOwnPropertyNames(values).forEach((prop) => {
       var val = values[prop];
       if (prop[0] == "@") {
-        var attr = prop.substr(1);
+        var attr = prop.substring(1);
         element.setAttribute(attr, val);
       } else if (prop == "innerHTML" || prop == "text" || prop == "html") {
         element.innerHTML = val;
       } else {
-        element[prop] = val;
+        element.setAttribute(prop, val);
       }
     });
     return element;
@@ -636,6 +639,11 @@ export class DOM {
   setInnerHTML(selector, html) {
     this.toElementArray(selector).forEach((element) => {
       element.innerHTML = `${html}`;
+    });
+  }
+  setInnerText(selector, text) {
+    this.toElementArray(selector).forEach((element) => {
+      element.innerText = `${text}`;
     });
   }
 
@@ -730,6 +738,9 @@ export class DOM {
 }
 
 const dom = new DOM();
+export { dom };
+
+// window.drjs shouldn't be needed any more.  usefule without modules
 window.drjs = window.drjs || {};
 window.drjs.dom = dom;
 export default dom;

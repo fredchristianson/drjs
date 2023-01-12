@@ -1,7 +1,11 @@
 import { LOG_LEVEL, Logger } from "../../logger.js";
 import Util from "../../util.js";
 import { DOM, default as dom } from "../dom.js";
-import { ObjectEventType, HandlerResponse, HandlerMethod } from "./common.js";
+import {
+  ObjectEventType,
+  EventHandlerReturn,
+  HandlerMethod,
+} from "./common.js";
 export * from "./common.js";
 
 const log = Logger.create("EventHandler", LOG_LEVEL.WARN);
@@ -79,7 +83,7 @@ export class EventHandlerBuilder {
 
 export class EventHandler {
   constructor(...args) {
-    this.defaultResponse = HandlerResponse.StopPropagation;
+    this.defaultResponse = EventHandlerReturn.Continue;
     this.eventProcessor = this.eventProcessorMethod.bind(this);
     this.listenElement = null;
     this.typeName = null;
@@ -178,6 +182,9 @@ export class EventHandler {
     return false;
   }
   listen() {
+    if (this.listenElement == null) {
+      this.listenElement = document.body;
+    }
     if (this.typeName == null) {
       log.error("EventHandler requires an event type name (e.g. 'click'");
       return;
@@ -237,6 +244,9 @@ export class EventHandler {
   }
 
   eventProcessorMethod(event) {
+    var target = event.target;
+    log.never(`eventHandler ${target.id}:${target.className} - ${event.type}`);
+
     if (this.selectorMismatch(event)) {
       return;
     }
@@ -247,13 +257,13 @@ export class EventHandler {
       return;
     }
     if (this.withAlt && !event.altKey) {
-      return HandlerResponse.Continue;
+      return;
     }
     if (this.withCtrl && !event.ctrlKey) {
-      return HandlerResponse.Continue;
+      return;
     }
     if (this.withShift && !event.shiftKey) {
-      return HandlerResponse.Continue;
+      return;
     }
     event.hasShift = event.shiftKey;
     event.hasAlt = event.altKey;
@@ -269,12 +279,14 @@ export class EventHandler {
     } else {
       this.invokeHandler(event);
     }
+    log.never(
+      `done eventHandler ${target.id}:${target.className} - ${event.type}`
+    );
   }
 
   invokeHandler(event) {
-    var result = null;
+    var result = this.defaultResponse.clone();
     var target = this.getEventTarget(event);
-    log.never(`eventHandler ${target.id}:${target.className} - ${event.type}`);
     if (this.dataSource) {
       if (typeof this.dataSource == "function") {
         this.data = this.dataSource(this.getEventTarget(event));
@@ -282,25 +294,8 @@ export class EventHandler {
         this.data = this.dataSource;
       }
     }
-    result = this.defaultResponse;
-    result = this.callHandler(this.handlerMethod, event);
-
-    if (result == null) {
-      result = this.defaultResponse || HandlerResponse.stopPropagation;
-    }
-
-    if (
-      result == HandlerResponse.stopPropagation ||
-      result == HandlerResponse.StopAll
-    ) {
-      event.stopPropagation();
-    }
-    if (
-      result == HandlerResponse.StopDefault ||
-      result == HandlerResponse.StopAll
-    ) {
-      event.preventDefault();
-    }
+    result.replace(this.callHandler(this.handlerMethod, event));
+    result.finishEvent(event);
   }
 
   // allow derived classed to just override this.

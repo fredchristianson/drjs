@@ -3,16 +3,16 @@ import { default as dom } from "../dom.js";
 import {
   EventHandlerBuilder,
   EventHandler,
-  HandlerResponse,
+  EventHandlerReturn,
   HandlerMethod,
 } from "./handler.js";
 
 const log = Logger.create("InputHandler", LOG_LEVEL.WARN);
 
-export function BuildInputHandler() {
+function BuildInputHandler() {
   return new InputHandlerBuilder();
 }
-export class InputHandlerBuilder extends EventHandlerBuilder {
+class InputHandlerBuilder extends EventHandlerBuilder {
   constructor(type) {
     super(type || InputHandler);
     this.ENTER_KEY = 13;
@@ -23,12 +23,24 @@ export class InputHandlerBuilder extends EventHandlerBuilder {
     this.handlerInstance.setOnChange(new HandlerMethod(...args, "onChange"));
     return this;
   }
-  onBlur(...args) {
-    this.handlerInstance.setOnBlur(new HandlerMethod(...args, "onBlur"));
+  onInput(...args) {
+    this.handlerInstance.setOnInput(new HandlerMethod(...args, "onInput"));
     return this;
   }
   onFocus(...args) {
-    this.handlerInstance.setOnFocus(new HandlerMethod(...args, "onFocus"));
+    this.handlerInstance.setOnFocus(new HandlerMethod(...args, "onBlur"));
+    return this;
+  }
+  onBlur(...args) {
+    this.handlerInstance.setOnBlur(new HandlerMethod(...args, "onFocus"));
+    return this;
+  }
+  onFocusOut(...args) {
+    this.handlerInstance.setOnFocusOut(new HandlerMethod(...args, "onBlur"));
+    return this;
+  }
+  onFocusIn(...args) {
+    this.handlerInstance.setOnFocusIn(new HandlerMethod(...args, "onFocus"));
     return this;
   }
   onEnter(...args) {
@@ -54,25 +66,45 @@ export class InputHandlerBuilder extends EventHandlerBuilder {
   }
 }
 
-export class InputHandler extends EventHandler {
+class InputHandler extends EventHandler {
   constructor(...args) {
     super(...args);
-    this.setTypeName(["input", "change", "focusin", "focusout", "keydown"]);
-    this.setDefaultResponse(HandlerResponse.Continue);
+    this.setTypeName([
+      "input",
+      "change",
+      "focus",
+      "blur",
+      "focusin",
+      "focusout",
+      "keydown",
+    ]);
+    this.setDefaultResponse(EventHandlerReturn.Continue);
     this.onChange = HandlerMethod.None();
+    this.onInput = HandlerMethod.None();
     this.onFocus = HandlerMethod.None();
     this.onBlur = HandlerMethod.None();
+    this.onFocusIn = HandlerMethod.None();
+    this.onFocusOut = HandlerMethod.None();
     this.keyHandler = {};
   }
 
   setOnChange(handler) {
     this.onChange = handler;
   }
+  setOnInput(handler) {
+    this.onInput = handler;
+  }
   setOnBlur(handler) {
     this.onBlur = handler;
   }
   setOnFocus(handler) {
     this.onFocus = handler;
+  }
+  setOnFocusIn(handler) {
+    this.onFocusIn = handler;
+  }
+  setOnFocusOut(handler) {
+    this.onFocusOut = handler;
   }
 
   setOnKey(key, handler) {
@@ -91,42 +123,34 @@ export class InputHandler extends EventHandler {
 
   callHandler(method, event) {
     try {
-      if (event.type == "input" || event.type == "change") {
-        if (method != null) {
-          method.call(event.target, this.data, event, this);
-        }
-        this.onChange.setData(this.dataSource, this.data);
-        this.onChange.call(
-          this.getValue(event.target),
-          this.getEventTarget(event),
-          this.data,
-          event,
-          this
-        );
-      } else if (event.type == "focusout" && this.onBlur) {
-        this.onBlur.call(
-          this.getValue(event.target),
-          this.getEventTarget(event),
-          this.data,
-          event,
-          this
-        );
-      } else if (event.type == "focusin" && this.onFocus) {
-        this.onFocus.call(
-          this.getValue(event.target),
-          this.getEventTarget(event),
-          this.data,
-          event,
-          this
-        );
+      var method = null;
+      var target = this.getEventTarget(event);
+      var value = this.getValue(target);
+      var response = EventHandlerReturn.Continue;
+      if (event.type == "input") {
+        method = this.onInput;
+      } else if (event.type == "change") {
+        method = this.onChange;
+      } else if (event.type == "focusout") {
+        method = this.onFocusOut;
+      } else if (event.type == "focusin") {
+        method = this.onFocusIn;
+      } else if (event.type == "blur") {
+        method = this.onBlur;
+      } else if (event.type == "focus") {
+        method = this.onFocus;
       } else if (event.type == "keydown") {
         var handler = this.keyHandler[event.which];
         if (handler) {
-          var target = this.getEventTarget(event);
           var key = event.which;
-          handler.call(target, event);
+          response.combine(handler.call(target, event, key, value));
         }
       }
+      if (method != null) {
+        method.setData(this.dataSource, this.data);
+        response.combine(method.call(value, target, event));
+      }
+      return response;
     } catch (ex) {
       log.error(ex, "event handler for ", this.typeName, " failed");
     }
@@ -136,4 +160,4 @@ export class InputHandler extends EventHandler {
   }
 }
 
-export default { InputHandlerBuilder, BuildInputHandler, InputHandler };
+export { InputHandlerBuilder, BuildInputHandler, InputHandler };
