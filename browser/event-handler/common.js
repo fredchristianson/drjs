@@ -1,21 +1,27 @@
-class EventHandlerReturn {
+import { LOG_LEVEL, Logger } from '../../logger.js';
+const log = Logger.create('Event.Common', LOG_LEVEL.WARN);
+
+class Continuation {
   static get StopAll() {
-    return new StopAllHandlerReturn();
+    return new Continuation(true, true, true);
   }
   static get StopPropagation() {
-    return new StopPropagationHandlerReturn();
+    return new Continuation(true, false, false);
+  }
+  static get StopPropagationImmediate() {
+    return new Continuation(true, false, true);
   }
   static get PreventDefault() {
-    return new PreventDefaultHandlerReturn();
+    return new Continuation(false, true, false);
   }
   static get Continue() {
-    return new ContinueHandlerReturn();
+    return new Continuation(false, false, false);
   }
 
   constructor(
     stopPropagation = false,
     preventDefault = false,
-    immediate = true
+    immediate = false
   ) {
     this.stopEventPropagation = stopPropagation;
     this.preventEventDefault = preventDefault;
@@ -23,40 +29,49 @@ class EventHandlerReturn {
   }
 
   clone() {
-    return new EventHandlerReturn(
+    return new Continuation(
       this.stopEventPropagation,
-      this.preventDefault,
+      this.preventEventDefault,
       this.immediate
     );
   }
 
-  set preventDefault(prevent = true) {
+  get PreventDefault() {
+    return this.preventEventDefault;
+  }
+  set PreventDefault(prevent = true) {
     this.preventEventDefault = prevent;
   }
-  set stopPropagation(stop = true) {
+  get StopPropagation() {
+    return this.stopEventPropagation;
+  }
+  set StopPropagation(stop = true) {
     this.stopEventPropagation = stop;
     this.immediate = true;
   }
-  set stopPropagationImmediate(stop = true) {
+  get StopPropagationImmediate() {
+    return this.immediate;
+  }
+  set StopPropagationImmediate(stop = true) {
     this.immediate = stop;
   }
   combine(other = null) {
-    // if other is an EventHandlerReturn, use the most restrictive handling
-    if (other == null || !(other instanceof EventHandlerReturn)) {
-      return;
-    }
-    this.stopEventPropagation =
-      this.stopEventPropagation || other.stopEventPropagation;
-    this.preventDefault = this.preventDefault || other.preventDefault;
-    this.immediate = this.immediate || other.immediate;
+    /*
+     * initially, the results were the OR of stop.
+     * but that doesn't allow a handler to change
+     * to false, so just replacing if another Continuation is passed
+     */
+    this.replace(other);
   }
 
   combineOrStop(other) {
-    // if other is an EventHandlerReturn, use the most restrictive handling
-    // if other is not an EventHandlerResponse, stop & prevent
-    if (other == null || !(other instanceof EventHandlerReturn)) {
+    /*
+     * if other is an Continuation, use the most restrictive handling
+     * if other is not an EventHandlerResponse, stop & prevent
+     */
+    if (other == null || !(other instanceof Continuation)) {
       this.stopEventPropagation = true;
-      this.preventDefault = true;
+      this.preventEventDefault = true;
       this.immediate = true;
       return;
     }
@@ -68,9 +83,11 @@ class EventHandlerReturn {
   }
 
   replace(other) {
-    // if other is not null, replace this response values with the other
-    // do nothing if other is null
-    if (other == null || !(other instanceof EventHandlerReturn)) {
+    /*
+     * if other is not null, replace this response values with the other
+     * do nothing if other is null
+     */
+    if (other == null || !(other instanceof Continuation)) {
       return;
     }
     this.stopEventPropagation = other.stopEventPropagation;
@@ -96,30 +113,6 @@ class EventHandlerReturn {
   }
 }
 
-class StopAllHandlerReturn extends EventHandlerReturn {
-  constructor() {
-    super(true, true);
-  }
-}
-
-class StopPropagationHandlerReturn extends EventHandlerReturn {
-  constructor() {
-    super(true, false);
-  }
-}
-
-class PreventDefaultHandlerReturn extends EventHandlerReturn {
-  constructor() {
-    super(false, true);
-  }
-}
-
-class ContinueHandlerReturn extends EventHandlerReturn {
-  constructor() {
-    super(false, false);
-  }
-}
-
 function DoNothing() {
   return false;
 }
@@ -135,20 +128,23 @@ class MousePosition {
   }
 
   update(event) {
+    // todo: use the EventHandler target for position
     this.event = event;
     if (event != null) {
-      var target = event.currentTarget;
+      const target = event.currentTarget;
       this.width = target.clientWidth;
       this.height = target.clientHeight;
       this.x = event.offsetX;
       this.y = event.offsetY;
-      this.pctX = this.width > 0 ? (this.x * 1.0) / this.width : 0;
-      this.pctY = this.height > 0 ? (this.y * 1.0) / this.height : 0;
+      this.pctX = this.width > 0 ? Number(this.x) / this.width : 0;
+      this.pctY = this.height > 0 ? Number(this.y) / this.height : 0;
     }
   }
 
-  // pctX and pctY are [0...1].
-  // xPercent() and yPercent() are integers [0...100]
+  /*
+   * pctX and pctY are [0...1].
+   * xPercent() and yPercent() are integers [0...100]
+   */
   xPercent() {
     return Math.floor(this.pctX * 100);
   }
@@ -162,13 +158,16 @@ class ObjectEventType {
     this.name = name;
   }
 
+  get Name() {
+    return this.name;
+  }
   getName() {
     return this.name;
   }
 }
 
 class HandlerMethod {
-  static None() {
+  static get None() {
     return new HandlerMethod(null, null, null);
   }
   static Of(...args) {
@@ -178,42 +177,80 @@ class HandlerMethod {
     return new HandlerMethod(...args);
   }
   constructor(object, method, defaultMethod) {
-    if (typeof object == "function") {
+    if (typeof object == 'function') {
       this.handlerObject = null;
       this.handlerFunction = object;
-      this.dataSource = null;
-      this.data = null;
       return;
     }
     this.handlerObject = object;
-    var meth = method ?? defaultMethod;
-    if (typeof meth == "string" && object != null) {
+    let meth = method ?? defaultMethod;
+    if (typeof meth == 'string' && object != null) {
       meth = object[meth];
     }
-    if (typeof meth == "function") {
+    if (typeof meth == 'function') {
       this.handlerFunction = meth;
     } else {
       this.handlerFunction = null;
     }
   }
 
-  setData(dataSource, data) {
-    this.dataSource = dataSource;
-    this.data = data;
+  get IsValid() {
+    return this.handlerFunction != null;
   }
-  call(...args) {
-    if (this.handlerFunction) {
-      if (this.dataSource) {
-        return this.handlerFunction.call(
-          this.handlerObject,
-          this.data,
-          ...args
-        );
-      } else {
-        return this.handlerFunction.apply(this.handlerObject, args);
+
+  call(handler, event, ...args) {
+    const continuation = handler.DefaultContinuation;
+    try {
+      const target = handler.getEventTarget(event);
+      if (this.handlerFunction) {
+        if (handler.dataSource) {
+          let data = handler.dataSource;
+          if (handler.dataSource instanceof HandlerMethod) {
+            data = handler.dataSource.call(target, event, handler);
+          } else if (typeof this.dataSource == 'function') {
+            data = this.dataSource(event);
+          }
+          continuation.combine(
+            this.handlerFunction.call(
+              this.handlerObject,
+              data,
+              ...args,
+              target,
+              event,
+              handler
+            )
+          );
+        } else {
+          continuation.combine(
+            this.handlerFunction.call(
+              this.handlerObject,
+              ...args,
+              target,
+              event,
+              handler
+            )
+          );
+        }
       }
+    } catch (ex) {
+      log.error(ex, 'error in event handler');
     }
-    return EventHandlerReturn.Continue;
+    return continuation;
+  }
+}
+
+class DataHandlerMethod extends HandlerMethod {
+  constructor(...args) {
+    super(...args);
+  }
+
+  call(target, event, handler) {
+    return this.handlerFunction.call(
+      this.handlerObject,
+      target,
+      event,
+      handler
+    );
   }
 }
 
@@ -221,10 +258,7 @@ export {
   DoNothing,
   MousePosition,
   HandlerMethod,
+  DataHandlerMethod,
   ObjectEventType,
-  EventHandlerReturn,
-  StopAllHandlerReturn,
-  StopPropagationHandlerReturn,
-  ContinueHandlerReturn,
-  PreventDefaultHandlerReturn,
+  Continuation
 };

@@ -1,39 +1,45 @@
-import { Assert } from "../../assert.js";
-import { LOG_LEVEL, Logger } from "../../logger.js";
-import { default as dom } from "../dom.js";
+import { Assert } from '../../assert.js';
+import { LOG_LEVEL, Logger } from '../../logger.js';
+import { default as dom } from '../dom.js';
 import {
   EventHandlerBuilder,
-  EventHandler,
-  EventHandlerReturn,
-  HandlerMethod,
-} from "./handler.js";
+  EventListener,
+  Continuation,
+  HandlerMethod
+} from './handler.js';
 
-const log = Logger.create("KeyHandler", LOG_LEVEL.WARN);
+const log = Logger.create('KeyHandler', LOG_LEVEL.WARN);
 
 class KeyMatch {
   static get Enter() {
-    return new Key("Enter");
+    return new Key('Enter');
   }
   static get Escape() {
-    return new Key("Escape");
+    return new Key('Escape');
   }
   static get Home() {
-    return new Key("Home");
+    return new Key('Home');
   }
   static get End() {
-    return new Key("End");
+    return new Key('End');
   }
   static get LeftArrow() {
-    return new Key("ArrowLeft");
+    return new Key('ArrowLeft');
   }
   static get RightArrow() {
-    return new Key("ArrowRight");
+    return new Key('ArrowRight');
   }
   static get UpArrow() {
-    return new Key("ArrowUp");
+    return new Key('ArrowUp');
   }
   static get DownArrow() {
-    return new Key("ArrowDown");
+    return new Key('ArrowDown');
+  }
+  static get Tab() {
+    return new Key('Tab');
+  }
+  static get Space() {
+    return new Key(' ');
   }
 
   static Shift(key) {
@@ -47,39 +53,119 @@ class KeyMatch {
   }
 
   constructor(key) {
-    Assert.notNull(key, "KeyMatch requires a non-null key");
-    this.key = key.toLowerCase();
-    this.withShift = false;
-    this.withControl = false;
-    this.withAlt = false;
+    Assert.notNull(key, 'KeyMatch requires a non-null key');
+    if (typeof key == 'string') {
+      this.key = key;
+      this.lowerCaseKey = key.toLowerCase();
+    }
+    this.requireShift = false;
+    this.requireControl = false;
+    this.requireAlt = false;
+    this.noShift = false;
+    this.noControl = false;
+    this.noAlt = false;
     // response if handled and handler doesn't have a response
-    this.defaultResponse = EventHandlerReturn.StopAll;
+    this.defaultResponse = Continuation.StopAll;
   }
 
   isMatch(event) {
-    if (this.withAlt && !event.hasAlt) {
+    if (this.requireAlt && !event.hasAlt) {
       return false;
     }
-    if (this.withControl && !event.hasCtrl) {
+    if (this.requireControl && !event.hasCtrl) {
       return false;
     }
-    if (this.withAlt && !event.hasAlt) {
+    if (this.requireShift && !event.hasShift) {
       return false;
     }
-    return this.key == event.key.toLowerCase();
+    if (this.noAlt && event.hasAlt) {
+      return false;
+    }
+    if (this.noControl && event.hasCtrl) {
+      return false;
+    }
+    if (this.noShift && event.hasShift) {
+      return false;
+    }
+    return this.matchKey(event.key);
   }
 
-  shift(has = true) {
-    this.withShift = has;
-    return this;
+  matchKey(key) {
+    return this.lowerCaseKey == key.toLowerCase();
   }
-  control(has = true) {
-    this.withControl = has;
-    return this;
+
+  clone() {
+    const copy = new KeyMatch(this.key);
+    copy.requireShift = this.requireShift;
+    copy.requireControl = this.requireControl;
+    copy.requireAlt = this.requireAlt;
+    copy.noShift = this.noShift;
+    copy.noControl = this.noControl;
+    copy.noAlt = this.noAlt;
+    return copy;
   }
-  alt(has = true) {
-    this.withAlt = has;
-    return this;
+
+  withShift(has = true) {
+    let copy = this.clone();
+    copy.requireShift = has;
+    copy.noShift = !has;
+    return copy;
+  }
+  withCtrl(has = true) {
+    let copy = this.clone();
+    copy.requireControl = has;
+    copy.noControl = !has;
+    return copy;
+  }
+  withAlt(has = true) {
+    let copy = this.clone();
+    copy.requireAlt = has;
+    copy.noAlt = !has;
+    return copy;
+  }
+  withoutShift(has = true) {
+    let copy = this.clone();
+    copy.noShift = has;
+    copy.requireShift = !has;
+    return copy;
+  }
+  withoutCtrl(has = true) {
+    let copy = this.clone();
+    copy.noControl = has;
+    copy.requireControl = !has;
+    return copy;
+  }
+  withoutAlt(has = true) {
+    let copy = this.clone();
+    copy.noAlt = has;
+    copy.requireAlt = !has;
+    return copy;
+  }
+}
+
+class RegexKeyMatch extends KeyMatch {
+  constructor(regex) {
+    super(regex);
+    this.regex = regex;
+    // alt and control must be explicitly set
+    this.noAlt = true;
+    this.noControl = true;
+  }
+
+  matchKey(key) {
+    // only match single-letter keys. "Shift", "Arrow...", don't match
+    return key != null && key.length == 1 && this.regex.test(key);
+  }
+
+  clone() {
+    const copy = new RegexKeyMatch(this.regex);
+    copy.requireShift = this.requireShift;
+    copy.requireControl = this.requireControl;
+    copy.requireAlt = this.requireAlt;
+    copy.noShift = this.noShift;
+    copy.noControl = this.noControl;
+    copy.noAlt = this.noAlt;
+    return copy;
   }
 }
 
@@ -94,6 +180,11 @@ Key.LeftArrow = KeyMatch.LeftArrow;
 Key.RightArrow = KeyMatch.RightArrow;
 Key.Home = KeyMatch.Home;
 Key.End = KeyMatch.End;
+Key.Tab = KeyMatch.Tab;
+Key.Space = KeyMatch.Space;
+Key.Regex = function (regex) {
+  return new RegexKeyMatch(regex);
+};
 Key.Shift = function (key) {
   return Key(key).shift(true);
 };
@@ -114,24 +205,24 @@ class KeyHandlerBuilder extends EventHandlerBuilder {
   }
 
   onKeyDown(...args) {
-    this.handlerInstance.setOnKeyDown(new HandlerMethod(...args, "onKeyDown"));
+    this.handlerInstance.setOnKeyDown(new HandlerMethod(...args, 'onKeyDown'));
     return this;
   }
   onKeyUp(...args) {
-    this.handlerInstance.setOnKeyUp(new HandlerMethod(...args, "onKeyUp"));
+    this.handlerInstance.setOnKeyUp(new HandlerMethod(...args, 'onKeyUp'));
     return this;
   }
   onEnter(...args) {
     this.handlerInstance.setOnKey(
       Key.Enter,
-      new HandlerMethod(...args, "onEnter")
+      new HandlerMethod(...args, 'onEnter')
     );
     return this;
   }
   onEscape(...args) {
     this.handlerInstance.setOnKey(
       Key.Escape,
-      new HandlerMethod(...args, "onEscape")
+      new HandlerMethod(...args, 'onEscape')
     );
     return this;
   }
@@ -140,7 +231,7 @@ class KeyHandlerBuilder extends EventHandlerBuilder {
       key = Key(key);
     }
 
-    this.handlerInstance.setOnKey(key, new HandlerMethod(...args, "onKey"));
+    this.handlerInstance.setOnKey(key, new HandlerMethod(...args, 'onKey'));
     return this;
   }
   // only handle keys if document.activeElement is what is being listened to.
@@ -153,39 +244,35 @@ class KeyHandlerBuilder extends EventHandlerBuilder {
 
 class KeyMatchHandler {
   constructor(keyMatch, handler) {
-    Assert.notNull(keyMatch, "KeyMatchHandler requires a KeyMatch");
+    Assert.notNull(keyMatch, 'KeyMatchHandler requires a KeyMatch');
     Assert.type(
       keyMatch,
       KeyMatch,
-      "keyMatch parameter is not a KeyMatch instance"
+      'keyMatch parameter is not a KeyMatch instance'
     );
-    Assert.notNull(handler, "KeyMatchHandler requires a handler method");
+    Assert.notNull(handler, 'KeyMatchHandler requires a handler method');
     this.keyMatch = keyMatch;
     this.handlerMethod = handler;
   }
   handleEvent(event, keyHandler) {
-    if (this.keyMatch.isMatch(event)) {
-      this.handlerMethod.setData(keyHandler.dataSource, keyHandler.data);
-      var response = this.keyMatch.defaultResponse.clone();
-      response.replace(
-        this.handlerMethod.call(
-          event.key,
-          keyHandler.getEventTarget(event),
-          event
-        )
-      );
+    if (this.match(event)) {
+      let response = this.keyMatch.defaultResponse.clone();
+      response.replace(this.handlerMethod.call(keyHandler, event, event.key));
       return response;
     }
   }
+  match(event) {
+    return this.keyMatch.isMatch(event);
+  }
 }
 
-class KeyHandler extends EventHandler {
+class KeyHandler extends EventListener {
   constructor(...args) {
     super(...args);
-    this.setTypeName(["keydown", "keyup"]);
-    this.setDefaultResponse(EventHandlerReturn.Continue);
-    this.onKeyDown = HandlerMethod.None();
-    this.onKeyUp = HandlerMethod.None();
+    this.setTypeName(['keydown', 'keyup']);
+    this.setDefaultContinuation(Continuation.Continue);
+    this.onKeyDown = HandlerMethod.None;
+    this.onKeyUp = HandlerMethod.None;
     this.keyHandlers = [];
     this.requireActiveElement = false;
   }
@@ -204,7 +291,7 @@ class KeyHandler extends EventHandler {
     this.keyHandlers.push(new KeyMatchHandler(key, handler));
   }
 
-  callHandler(method, event) {
+  callHandlers(event) {
     try {
       if (
         this.requireActiveElement &&
@@ -212,22 +299,24 @@ class KeyHandler extends EventHandler {
       ) {
         return;
       }
-      var response = EventHandlerReturn.Continue;
-      var target = this.getEventTarget(event);
-      if (event.type == "keydown") {
-        this.onKeyDown.setData(this.dataSource, this.data);
-        response.replace(this.onKeyDown.call(event.key, target, event));
+      // if there are not matches, continue
+      let noMatchResponse = Continuation.Continue;
+      let matchResponse = this.DefaultContinuation;
+      let hasMatch = false;
+      let target = this.getEventTarget(event);
+      if (event.type == 'keydown') {
+        noMatchResponse.replace(this.onKeyDown.call(this, event, event.key));
         this.keyHandlers.forEach((kh) => {
-          response.combine(kh.handleEvent(event, this));
+          hasMatch = hasMatch || kh.match(event);
+          matchResponse.combine(kh.handleEvent(event, this));
         });
-      } else if (event.type == "keyup") {
-        this.onKeyUp.setData(this.dataSource, this.data);
-        response.replace(this.onKeyUp.call(event.key, target, event));
+      } else if (event.type == 'keyup') {
+        noMatchResponse.replace(this.onKeyUp.call(this, event, event.key));
       }
 
-      return response;
+      return hasMatch ? matchResponse : noMatchResponse;
     } catch (ex) {
-      log.error(ex, "event handler for ", this.typeName, " failed");
+      log.error(ex, 'event handler for ', this.typeName, ' failed');
     }
   }
   getValue(element) {
